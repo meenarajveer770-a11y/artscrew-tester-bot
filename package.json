@@ -1,0 +1,19 @@
+{
+  "name": "artscrew-whatsapp-cloud-bot",
+  "version": "1.0.0",
+  "description": "Automated 24/7 WhatsApp 2-Hour Reminder Bot for Artscrew 14-Day Google Play Closed Testers",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.12",
+    "express": "^4.19.2",
+    "node-cron": "^3.0.3",
+    "pino": "^9.0.0",
+    "qrcode": "^1.5.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
