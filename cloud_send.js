@@ -50,15 +50,21 @@ async function pullCloudState() {
     const data = await res.json();
     if (data && data.success) {
       if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
-      const files = data.sessionFiles || {};
-      const fileKeys = Object.keys(files);
-      if (fileKeys.length > 0) {
-        for (const fname of fileKeys) {
-          const safeName = path.basename(fname);
-          fs.writeFileSync(path.join(AUTH_DIR, safeName), files[fname], 'utf8');
+      // Remove any stale peer session-*.json files so Baileys fetches fresh PreKey bundles
+      for (const existing of fs.readdirSync(AUTH_DIR)) {
+        if (existing.startsWith('session-') || existing.startsWith('sender-key-')) {
+          try { fs.unlinkSync(path.join(AUTH_DIR, existing)); } catch (e) {}
         }
-        console.log(`☁️ Restored ${fileKeys.length} WhatsApp session files from Cloudflare R2.`);
       }
+      const files = data.sessionFiles || {};
+      let restoredCount = 0;
+      for (const fname of Object.keys(files)) {
+        const safeName = path.basename(fname);
+        if (safeName.startsWith('session-') || safeName.startsWith('sender-key-')) continue;
+        fs.writeFileSync(path.join(AUTH_DIR, safeName), files[fname], 'utf8');
+        restoredCount++;
+      }
+      console.log(`☁️ Restored ${restoredCount} WhatsApp auth files from Cloudflare R2.`);
       return data.lastRemindedTimes || {};
     }
   } catch (err) {
@@ -67,13 +73,14 @@ async function pullCloudState() {
   return {};
 }
 
-// Upload current session files & lastRemindedTimes to Cloudflare R2
+// Upload current auth files (creds + pre-keys) & lastRemindedTimes to Cloudflare R2
 async function pushCloudState(lastRemindedTimes) {
   try {
     const sessionFiles = {};
     if (fs.existsSync(AUTH_DIR)) {
       const list = fs.readdirSync(AUTH_DIR);
       for (const fname of list) {
+        if (fname.startsWith('session-') || fname.startsWith('sender-key-')) continue;
         const fullPath = path.join(AUTH_DIR, fname);
         if (fs.statSync(fullPath).isFile()) {
           sessionFiles[fname] = fs.readFileSync(fullPath, 'utf8');
@@ -92,7 +99,7 @@ async function pushCloudState(lastRemindedTimes) {
     });
     const data = await res.json();
     if (data && data.success) {
-      console.log(`☁️ Synced ${Object.keys(sessionFiles).length} WhatsApp session files & reminder timestamps to Cloudflare R2.`);
+      console.log(`☁️ Synced ${Object.keys(sessionFiles).length} WhatsApp auth files & reminder timestamps to Cloudflare R2.`);
     }
   } catch (err) {
     console.error('⚠️ Failed to push cloud state to R2:', err.message);
@@ -219,7 +226,13 @@ async function main() {
     const reminderMessage = `Hey ${name}! 👋\n\nGoogle Play closed testing ke liye aaj Artscrew app 10 minute use karna compulsory hai.\n\n📊 *Aapka Aaj Ka Record:*\n⏱️ App use hua: *${usedFormatted}* (10 min me se)\n⏳ Target bacha hai: *${remainingFormatted}* baaki hai\n\n💡 *Tip:* App khol kar thoda sa scroll ya drawing canvas/tutorial open karke 1-2 line draw kar lena aur screen lock mat hone dena, taaki Google Play par attendance 100% count ho sake 🙏\n\n(Note: Jaise hi aapke 10 minute complete honge, reminders aana auto-stop ho jayega).`;
 
     try {
-      const sentMsg = await sock.sendMessage(jid, { text: reminderMessage });
+      let targetJid = jid;
+      try {
+        const [onWa] = await sock.onWhatsApp(jid);
+        if (onWa && onWa.jid) targetJid = onWa.jid;
+      } catch (checkErr) {}
+
+      const sentMsg = await sock.sendMessage(targetJid, { text: reminderMessage });
       if (sentMsg && sentMsg.key && sentMsg.key.id) {
         sentMessagesCache.set(sentMsg.key.id, sentMsg.message || { conversation: reminderMessage });
       }
