@@ -1,0 +1,67 @@
+{
+  "apiEndpoint": "https://artscrew.pages.dev/api/testers",
+  "checkIntervalMinutes": 60,
+  "dailyTargetSeconds": 600,
+  "activeHoursIst": {
+    "start": 11,
+    "end": 23
+  },
+  "testers": [
+    {
+      "name": "Komal",
+      "phone": "8739875171"
+    },
+    {
+      "name": "Gurmeet",
+      "phone": "9812018952"
+    },
+    {
+      "name": "Rajat",
+      "phone": "9588785990"
+    },
+    {
+      "name": "Arun",
+      "phone": "6395072417"
+    },
+    {
+      "name": "Nitin",
+      "phone": "8168229311"
+    },
+    {
+      "name": "Atul",
+      "phone": "9588191022"
+    },
+    {
+      "name": "Lalchand",
+      "phone": "6367547019"
+    },
+    {
+      "name": "Aryan",
+      "phone": "8053181894"
+    },
+    {
+      "name": "Sudhir",
+      "phone": "9992526072"
+    },
+    {
+      "name": "Bhudev",
+      "phone": "9996924195"
+    },
+    {
+      "name": "Moni",
+      "phone": "8178410281"
+    },
+    {
+      "name": "Rachit",
+      "phone": "7976338956"
+    },
+    {
+      "name": "Narayan",
+      "phone": "9588766718"
+    },
+    {
+      "name": "Pankaj",
+      "phone": "9053745636"
+    }
+  ]
+}
