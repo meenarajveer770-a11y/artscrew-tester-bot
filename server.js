@@ -131,6 +131,8 @@ async function pushCloudState() {
   }
 }
 
+const sentMessagesCache = new Map();
+
 // WhatsApp Connection Engine
 async function connectToWhatsApp() {
   try {
@@ -142,7 +144,13 @@ async function connectToWhatsApp() {
       auth: state,
       logger: pino({ level: 'silent' }),
       printQRInTerminal: false,
-      browser: ['Artscrew Tester Bot', 'Chrome', '1.0.0']
+      browser: ['Artscrew Tester Bot', 'Chrome', '1.0.0'],
+      getMessage: async (key) => {
+        if (key && key.id && sentMessagesCache.has(key.id)) {
+          return sentMessagesCache.get(key.id);
+        }
+        return undefined;
+      }
     });
 
     sock.ev.on('creds.update', saveCreds);
@@ -313,7 +321,10 @@ async function runReminderCycle(isManualTrigger = false) {
         if (connectionStatus !== 'connected' || !sock) {
           await waitForConnection(25000);
         }
-        await sock.sendMessage(jid, { text: reminderMessage });
+        const sentMsg = await sock.sendMessage(jid, { text: reminderMessage });
+        if (sentMsg && sentMsg.key && sentMsg.key.id) {
+          sentMessagesCache.set(sentMsg.key.id, sentMsg.message || { conversation: reminderMessage });
+        }
         lastRemindedTimes[name] = Date.now();
         sentCount++;
         addLog(`✅ Reminder sent to ${name} (${phone}) - Today: ${formatDuration(todaySeconds)}/10m`);
