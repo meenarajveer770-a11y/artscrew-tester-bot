@@ -133,13 +133,20 @@ async function main() {
   // 1. Pull latest session & reminder timestamps from R2
   const lastRemindedTimes = await pullCloudState();
 
-  // 2. Connect to WhatsApp
+  // 2. Connect to WhatsApp with Signal retry cache (prevents 'Waiting for this message')
+  const sentMessagesCache = new Map();
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const sock = makeWASocket({
     auth: state,
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
-    browser: ['Artscrew Tester Bot', 'Chrome', '1.0.0']
+    browser: ['Artscrew Tester Bot', 'Chrome', '1.0.0'],
+    getMessage: async (key) => {
+      if (key && key.id && sentMessagesCache.has(key.id)) {
+        return sentMessagesCache.get(key.id);
+      }
+      return undefined;
+    }
   });
 
   sock.ev.on('creds.update', saveCreds);
@@ -167,7 +174,7 @@ async function main() {
   }
 
   console.log('✅ WhatsApp Connected in Cloud! Checking live tester progress...');
-  await delay(2000);
+  await delay(2500);
 
   // 3. Fetch live tester stats
   const res = await fetch(config.apiEndpoint || API_URL, { headers: { 'Cache-Control': 'no-cache' } });
@@ -212,7 +219,10 @@ async function main() {
     const reminderMessage = `Hey ${name}! 👋\n\nGoogle Play closed testing ke liye aaj Artscrew app 10 minute use karna compulsory hai.\n\n📊 *Aapka Aaj Ka Record:*\n⏱️ App use hua: *${usedFormatted}* (10 min me se)\n⏳ Target bacha hai: *${remainingFormatted}* baaki hai\n\n💡 *Tip:* App khol kar thoda sa scroll ya drawing canvas/tutorial open karke 1-2 line draw kar lena aur screen lock mat hone dena, taaki Google Play par attendance 100% count ho sake 🙏\n\n(Note: Jaise hi aapke 10 minute complete honge, reminders aana auto-stop ho jayega).`;
 
     try {
-      await sock.sendMessage(jid, { text: reminderMessage });
+      const sentMsg = await sock.sendMessage(jid, { text: reminderMessage });
+      if (sentMsg && sentMsg.key && sentMsg.key.id) {
+        sentMessagesCache.set(sentMsg.key.id, sentMsg.message || { conversation: reminderMessage });
+      }
       lastRemindedTimes[name] = Date.now();
       sentCount++;
       console.log(`✅ Cloud Reminder sent to ${name} (${phone}) - Today: ${usedFormatted}/10m`);
@@ -224,9 +234,15 @@ async function main() {
 
   console.log(`🏁 Cloud Reminder cycle finished. Sent: ${sentCount}, Skipped: ${skippedCount}`);
 
-  // 4. Save updated session keys & reminder timestamps back to R2
-  await delay(2000);
+  // 4. Wait 15s if messages were sent so Signal retry receipts from phones are fulfilled cleanly
+  if (sentCount > 0) {
+    console.log('⏳ Waiting 15s to fulfill any Signal encryption retry receipts...');
+    await delay(15000);
+  } else {
+    await delay(2000);
+  }
   await pushCloudState(lastRemindedTimes);
+  await delay(300);
   process.exit(0);
 }
 
