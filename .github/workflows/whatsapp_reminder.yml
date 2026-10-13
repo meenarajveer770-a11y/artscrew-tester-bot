@@ -5,6 +5,11 @@ on:
     # Runs every hour on the hour (cloud script automatically filters 11 AM - 11 PM IST)
     - cron: '5 * * * *'
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force send even if cooldown active'
+        required: false
+        default: 'false'
 
 jobs:
   send-reminders:
@@ -25,4 +30,9 @@ jobs:
       - name: Run Cloud WhatsApp Reminder Cycle
         env:
           WA_CLOUD_SECRET: artscrew_wa_cloud_2026_secret
-        run: node cloud_send.js
+        run: |
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            node cloud_send.js --force
+          else
+            node cloud_send.js
+          fi
