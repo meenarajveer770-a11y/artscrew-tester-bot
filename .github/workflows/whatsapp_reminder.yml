@@ -1,0 +1,29 @@
+name: Artscrew Hourly WhatsApp Tester Reminder
+
+on:
+  schedule:
+    # Runs every hour on the hour (cloud script automatically filters 11 AM - 11 PM IST)
+    - cron: '5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run Cloud WhatsApp Reminder Cycle
+        env:
+          WA_CLOUD_SECRET: artscrew_wa_cloud_2026_secret
+        run: node cloud_send.js
